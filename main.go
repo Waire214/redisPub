@@ -24,9 +24,16 @@ type Otp struct {
 
 var (
 	ctx    = context.TODO()
-	client = redis.NewClient(&redis.Options{
+	client1 = redis.NewClient(&redis.Options{
 		Addr: "localhost:6379",
 	})
+	client2 = redis.NewClient(&redis.Options{
+		Addr: "localhost:6379",
+	})
+	client3 = redis.NewClient(&redis.Options{
+		Addr: "localhost:6379",
+	})
+
 	user     = User{UserReference: "1111dshjureuj3284837hewbdsg"}
 	checkOtp = Otp{Reference: "868762e1-9a2b-411a-9b6c-8d518fcded91", UserReference: "1111dshjureuj3284837hewbdsg", Code: 620671}
 	identityMessage []interface{}
@@ -72,7 +79,6 @@ func publishToRedis(client *redis.Client, pubChannel string, sendMessage Redis) 
 }
 
 func main() {
-	// Otp{Reference: "868762e1-9a2b-411a-9b6c-8d518fcded91", UserReference: "1111dshjureuj3284837hewbdsg", Code: 620671}
 	sendIdentity := Redis{
 		Reference: uuid.New().String(),
 		Channel:   "identity",
@@ -85,8 +91,8 @@ func main() {
 		Subject: "Send Otp to the otp-service for validation",
 		Message: append(checkOtpMessage, "1111dshjureuj3284837hewbdsg", 620671),
 	}
-	
-	publishToRedis(client, "identity", sendIdentity)
-	subscribeToRedis(client, "otp")
-	publishToRedis(client, "notification", sendOtp)
+	publishToRedis(client1, "identity", sendIdentity)
+	subscribeToRedis(client2, "otp")
+	publishToRedis(client3, "notification", sendOtp)
+
 }
