@@ -33,7 +33,13 @@ var (
 	client3 = redis.NewClient(&redis.Options{
 		Addr: "localhost:6379",
 	})
-
+	
+// 	MESSAGE for the decagon guys
+// 	instead of creating 3 clients. I think it should be one but at the time, one wasn't working. It should be one because the value is a pointer
+	// 	so you can say client = redis.NewClient(&redis.Options{
+// 		Addr: "localhost:6379",
+// 	})
+// 	then defer client.Close() --- not tested yet, but you can test it. I will test soon.
 	user     = User{UserReference: "1111dshjureuj3284837hewbdsg"}
 	checkOtp = Otp{Reference: "868762e1-9a2b-411a-9b6c-8d518fcded91", UserReference: "1111dshjureuj3284837hewbdsg", Code: 620671}
 	identityMessage []interface{}
