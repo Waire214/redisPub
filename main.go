@@ -24,28 +24,11 @@ type Otp struct {
 
 var (
 	ctx    = context.TODO()
-	client1 = redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
-	})
-	client2 = redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
-	})
-	client3 = redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
-	})
-	
-// 	MESSAGE for the decagon guys
-// 	instead of creating 3 clients. I think it should be one but at the time, one wasn't working. It should be one because the value is a pointer
-	// 	so you can say client = redis.NewClient(&redis.Options{
-// 		Addr: "localhost:6379",
-// 	})
-// 	then defer client.Close() --- not tested yet, but you can test it. I will test soon.
 	user     = User{UserReference: "1111dshjureuj3284837hewbdsg"}
 	checkOtp = Otp{Reference: "868762e1-9a2b-411a-9b6c-8d518fcded91", UserReference: "1111dshjureuj3284837hewbdsg", Code: 620671}
 	identityMessage []interface{}
 	checkOtpMessage []interface{}
 )
-
 type Redis struct {
 	Reference string
 	Channel   string
@@ -53,23 +36,27 @@ type Redis struct {
 	Message   []interface{}
 }
 
-
 func subscribeToRedis(client *redis.Client, subChannel string) Redis {
 	fmt.Println("start subscription to " + subChannel)
 	receiveMessage := Redis{}
 	sub := client.Subscribe(ctx, subChannel)
+	defer sub.Close()
 
-	msg, err := sub.ReceiveMessage(ctx)
-	if err != nil {
-		fmt.Println(err)
-	}
-	if err := json.Unmarshal([]byte(msg.Payload), &receiveMessage); err != nil {
-		panic(err)
-	}
-	fmt.Println(receiveMessage)
+	func() {
+		msg, err := sub.ReceiveMessage(ctx)
+		if err != nil {
+			fmt.Println(err)
+		}
+		if err := json.Unmarshal([]byte(msg.Payload), &receiveMessage); err != nil {
+			panic(err)
+		}
+		fmt.Println(receiveMessage)
+	}()
+
 	fmt.Println("end subscription to  " + subChannel)
 	return receiveMessage
 }
+
 
 func publishToRedis(client *redis.Client, pubChannel string, sendMessage Redis) {
 	fmt.Println("start publishing to " + pubChannel)
@@ -83,8 +70,17 @@ func publishToRedis(client *redis.Client, pubChannel string, sendMessage Redis) 
 	}
 	fmt.Println("end publishing to " + pubChannel)
 }
+func clientRedis() *redis.Client{
+	client := redis.NewClient(&redis.Options{
+		Addr: "localhost:6379",
+	})
+	return client
+}
 
 func main() {
+	client := clientRedis()
+	defer client.Close()
+
 	sendIdentity := Redis{
 		Reference: uuid.New().String(),
 		Channel:   "identity",
@@ -97,8 +93,10 @@ func main() {
 		Subject: "Send Otp to the otp-service for validation",
 		Message: append(checkOtpMessage, "1111dshjureuj3284837hewbdsg", 620671),
 	}
-	publishToRedis(client1, "identity", sendIdentity)
-	subscribeToRedis(client2, "otp")
-	publishToRedis(client3, "notification", sendOtp)
-
+	publishToRedis(client, "identity", sendIdentity)
+	subscribeToRedis(client, "otp")
+	time.Sleep(3 * time.Second)
+	publishToRedis(client, "notification", sendOtp)
+	time.Sleep(3 * time.Second)
+	publishToRedis(client, "notification", sendOtp)
 }
