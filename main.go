@@ -23,12 +23,13 @@ type Otp struct {
 }
 
 var (
-	ctx    = context.TODO()
-	user     = User{UserReference: "1111dshjureuj3284837hewbdsg"}
-	checkOtp = Otp{Reference: "868762e1-9a2b-411a-9b6c-8d518fcded91", UserReference: "1111dshjureuj3284837hewbdsg", Code: 620671}
+	ctx             = context.TODO()
+	user            = User{UserReference: "1111dshjureuj3284837hewbdsg"}
+	checkOtp        = Otp{Reference: "868762e1-9a2b-411a-9b6c-8d518fcded91", UserReference: "1111dshjureuj3284837hewbdsg", Code: 620671}
 	identityMessage []interface{}
 	checkOtpMessage []interface{}
 )
+
 type Redis struct {
 	Reference string
 	Channel   string
@@ -57,7 +58,6 @@ func subscribeToRedis(client *redis.Client, subChannel string) Redis {
 	return receiveMessage
 }
 
-
 func publishToRedis(client *redis.Client, pubChannel string, sendMessage Redis) {
 	fmt.Println("start publishing to " + pubChannel)
 	payload, err := json.Marshal(sendMessage)
@@ -70,7 +70,7 @@ func publishToRedis(client *redis.Client, pubChannel string, sendMessage Redis) 
 	}
 	fmt.Println("end publishing to " + pubChannel)
 }
-func clientRedis() *redis.Client{
+func clientRedis() *redis.Client {
 	client := redis.NewClient(&redis.Options{
 		Addr: "localhost:6379",
 	})
@@ -89,9 +89,9 @@ func main() {
 	}
 	sendOtp := Redis{
 		Reference: "868762e1-9a2b-411a-9b6c-8d518fcded91",
-		Channel: "notification",
-		Subject: "Send Otp to the otp-service for validation",
-		Message: append(checkOtpMessage, "1111dshjureuj3284837hewbdsg", 620671),
+		Channel:   "notification",
+		Subject:   "Send Otp to the otp-service for validation",
+		Message:   append(checkOtpMessage, "1111dshjureuj3284837hewbdsg", 620671),
 	}
 	publishToRedis(client, "identity", sendIdentity)
 	subscribeToRedis(client, "otp")
