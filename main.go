@@ -3,102 +3,33 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"log"
+	"math/rand"
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/google/uuid"
 )
 
-type User struct {
-	UserReference string `json:"user_reference"`
-}
-type Notification struct {
-	Reference string `json:"reference" bson:"reference"`
-	Type      string `json:"type" bson:"type"`
-	Subject   string `json:"subject" bson:"subject"`
-	From      string `json:"from" bson:"from"`
-	To        string `json:"to" bson:"to"`
-	Message   string `json:"message" bson:"message"`
-	SendAt    string `json:"send_at" bson:"send_at"`
-	// SentAt string `json:"sent_at" bson:"sent_at"`
-	Status string `json:"status" bson:"status"`
-}
-type NotificationType string
-type StatusType string
+// type SubscriptionHandler func(event platform.Event)
 
-func (t NotificationType) CheckNotificationTypeEnum() (string, error) {
-	var response string
-	types := [...]string{"SCHEDULED", "INSTANT"}
+// type EventStore interface {
+// 	Publish(topic string, message []byte) error
+// 	PublishRaw(topic string, message ...interface{}) error
+// 	Subscribe(topic string, handler SubscriptionHandler) error
+// 	Run(ctx context.Context, handlers ...EventHandler)
+// }
 
-	x := string(t)
-	for _, v := range types {
-		if v == x {
-
-			response = x
-
-			return response, nil
-		}
-	}
-
-	response = ""
-
-	return response, errors.New("invalid notification type")
-}
-
-type Otp struct {
-	Reference     string    `json:"reference" bson:"reference"`
-	UserReference string    `json:"user_reference" bson:"user_reference"`
-	Code          int       `json:"code" bson:"code"`
-	CreatedOn     string    `json:"created_on" bson:"created_on"`
-	ExpiresAt     time.Time `json:"expires_at" bson:"expires_at"`
-}
-
-var (
-	ctx             = context.TODO()
-	user            = User{UserReference: "1111dshjureuj3284837hewbdsg"}
-	checkOtp        = Otp{Reference: "868762e1-9a2b-411a-9b6c-8d518fcded91", UserReference: "1111dshjureuj3284837hewbdsg", Code: 620671}
-	identityMessage []interface{}
-	checkOtpMessage []interface{}
-)
-
-type Redis struct {
-	Reference string
-	Channel   string
-	Subject   string
-	Message   []interface{}
-}
-
-func subscribeToRedis(client *redis.Client, subChannel string) Redis {
-	fmt.Println("start subscription to " + subChannel)
-	receiveMessage := Redis{}
-	sub := client.Subscribe(ctx, subChannel)
-	defer sub.Close()
-
-	func() {
-		msg, err := sub.ReceiveMessage(ctx)
-		if err != nil {
-			fmt.Println(err)
-		}
-		if err := json.Unmarshal([]byte(msg.Payload), &receiveMessage); err != nil {
-			panic(err)
-		}
-		fmt.Println(receiveMessage)
-	}()
-
-	fmt.Println("end subscription to  " + subChannel)
-	return receiveMessage
-}
-
-func publishToRedis(client *redis.Client, pubChannel string, sendMessage interface{}) {
+func publishToRedis(ctx context.Context, client *redis.Client, pubChannel string) {
 	fmt.Println("start publishing to " + pubChannel)
-	payload, err := json.Marshal(sendMessage)
-	if err != nil {
-		panic(err)
+	y := struct {
+		Yes string
+	}{
+		Yes: "yes",
 	}
-	fmt.Println(sendMessage)
-	if err := client.Publish(ctx, pubChannel, payload).Err(); err != nil {
+	x, _ := json.Marshal(y)
+	err := client.Publish(ctx, pubChannel, x).Err()
+	if err != nil {
 		panic(err)
 	}
 	fmt.Println("end publishing to " + pubChannel)
@@ -111,37 +42,37 @@ func clientRedis() *redis.Client {
 	return client
 }
 
+func publishTicketReceivedEvent(ctx context.Context, client *redis.Client, stream string) error {
+	log.Println("Publishing event to Redis")
+	err := client.XAdd(ctx, &redis.XAddArgs{
+		Stream:       stream,
+		MaxLen:       0,
+		MaxLenApprox: 0,
+		ID:           "",
+		Values: map[string]interface{}{
+			"whatHappened": string("ticket received"),
+			"ticketID":     int(rand.Intn(100000000)),
+			"ticketData":   string("some ticket data"),
+		},
+	}).Err()
+	return err
+}
+
 func main() {
+
+	ctx := context.Background()
 	client := clientRedis()
 	defer client.Close()
 
-	sendIdentity := Redis{
-		Reference: uuid.New().String(),
-		Channel:   "identity",
-		Subject:   "Publish user identity to the otp-service for identification and authorization",
-		Message:   append(identityMessage, user.UserReference),
-	}
-	sendEmail := Notification{
-		Reference: uuid.New().String(),
-		Type:      "INSTANT",
-		Subject:   "sign up email",
-		From:      "gpifedozpas@gmail.com",
-		To:        "waire.tega@gmail.com",
-		Message:   "Connect with us here",
-	}
+	go publishToRedis(ctx, client, "lip")
 
-	sendOtp := Redis{
-		Reference: "868762e1-9a2b-411a-9b6c-8d518fcded91",
-		Channel:   "notification",
-		Subject:   "Send Otp to the otp-service for validation",
-		Message:   append(checkOtpMessage, "1111dshjureuj3284837hewbdsg", 620671),
-	}
-	publishToRedis(client, "someService", sendIdentity)
-	time.Sleep(3 * time.Second)
-	publishToRedis(client, "identity", sendEmail)
-	subscribeToRedis(client, "otp")
-	time.Sleep(3 * time.Second)
-	publishToRedis(client, "notification", sendOtp)
-	time.Sleep(3 * time.Second)
-	publishToRedis(client, "notification", sendOtp)
+	time.Sleep(1 * time.Second)
+
+		for i := 0; i < 1; i++ {
+			err := publishTicketReceivedEvent(ctx, client, "dilo")
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+
 }
